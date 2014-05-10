@@ -1,7 +1,7 @@
 import copy
 import random
 DEBUG = True
-CHECK_FOR_DEGENERATE = False
+CHECK_FOR_DEGENERATE = True
 
 inf = float('Inf')
 
@@ -63,20 +63,22 @@ def get_cost(prices, distribution):
 def check_degenerate(distribution, basis_nodes):
     if not CHECK_FOR_DEGENERATE:
         return False
-    return len(distribution) + len(distribution[0]) - 1 < len(basis_nodes)
+    return len(distribution) + len(distribution[0]) - 1 > len(basis_nodes)
 
-def get_basis_nodes(distribution):
+def get_basis_nodes(distribution, tried):
     basis_nodes = []
     for i in range(0, len(distribution)):
         for j in range(0, len(distribution[0])):
             if distribution[i][j] != 0:
                 basis_nodes.append((i, j))
-    basis_nodes = set(basis_nodes)
-    while check_degenerate(distribution, basis_nodes):
-        all_possible_nodes = set([(i, j) for j in range(0, len(distribution[0])) for i in range(0, len(distribution))])
-        non_basis_nodes = all_possible_nodes - basis_nodes
-        basis_nodes.append(random.choice(non_basis_nodes))
-    return basis_nodes
+    if not check_degenerate(distribution, basis_nodes):
+        return set(basis_nodes)
+
+    all_possible_nodes = set([(i, j) for j in range(0, len(distribution[0])) for i in range(0, len(distribution))])
+    non_basis_nodes = all_possible_nodes - set(basis_nodes)
+    random_elements = random.sample(list(non_basis_nodes), len(distribution) + len(distribution[0]) - 1 - len(basis_nodes))
+    basis_nodes.extend(random_elements)
+    return set(basis_nodes)
 
 def calc_potentials_row(stocks_potential, needs_potential, prices, basis_nodes, column_num):
     for i in range(0, len(stocks_potential)):
@@ -155,12 +157,30 @@ def transport_task_solver(prices, needs, stocks):
     iter = 1
     while True:
         debug_print("Iteration %d:" % iter)
-        basis_nodes = get_basis_nodes(distribution)
-        (stocks_potentials, needs_potentials) = calc_potentials(prices, basis_nodes)
-        min_ind = get_min_delta_ind(prices, stocks_potentials, needs_potentials, basis_nodes)
-        if min_ind is None:
+        potential_counted = False
+        tried = set()
+        optimized = False
+        while not potential_counted:
+            basis_nodes = get_basis_nodes(distribution, tried)
+            (stocks_potentials, needs_potentials) = calc_potentials(prices, basis_nodes)
+            potential_counted = True
+            for potential in stocks_potentials:
+                if potential == inf:
+                    potential_counted = False
+                    break
+            for potential in needs_potentials:
+                if potential == inf:
+                    potential_counted = False
+                    break
+            min_ind = get_min_delta_ind(prices, stocks_potentials, needs_potentials, basis_nodes)
+            if min_ind is None:
+                optimized = True
+                break
+            cycle = create_cycle(prices, basis_nodes, min_ind)
+            if (len(cycle) <= 2) or (cycle[0][0] != cycle[len(cycle) - 1][0]):
+                potential_counted = False
+        if optimized:
             break
-        cycle = create_cycle(prices, basis_nodes, min_ind)
         debug_print('Cycle: %s' % str(cycle))
         remake_distibution(distribution, cycle)
         debug_print('Current transport table')
@@ -179,9 +199,9 @@ stocks = [55, 95, 45]
 prices = [[7, 0, 8, 6], [3, 5, 1, 11], [2, 4, 7, 8]]
 
 #part 2
-prices = [[6, 10, 4, 5, 8], [8, 10, 7, 9, 11], [4, 8, 9, 10, 6], [5, 9, 6, 11, 10], [6, 11, 6, 3, 9]]
-stocks = [1, 1, 1, 1, 1]
-needs = [1, 1, 1, 1, 1]
+#prices = [[6, 10, 4, 5, 8], [8, 10, 7, 9, 11], [4, 8, 9, 10, 6], [5, 9, 6, 11, 10], [6, 11, 6, 3, 9]]
+#stocks = [1, 1, 1, 1, 1]
+#needs = [1, 1, 1, 1, 1]
 
 if __name__ == '__main__':
     transport_task_solver(prices, needs, stocks)
