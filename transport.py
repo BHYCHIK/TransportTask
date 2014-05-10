@@ -65,7 +65,7 @@ def check_degenerate(distribution, basis_nodes):
         return False
     return len(distribution) + len(distribution[0]) - 1 > len(basis_nodes)
 
-def get_basis_nodes(distribution, tried):
+def get_basis_nodes(distribution):
     basis_nodes = []
     for i in range(0, len(distribution)):
         for j in range(0, len(distribution[0])):
@@ -158,10 +158,9 @@ def transport_task_solver(prices, needs, stocks):
     while True:
         debug_print("Iteration %d:" % iter)
         potential_counted = False
-        tried = set()
         optimized = False
         while not potential_counted:
-            basis_nodes = get_basis_nodes(distribution, tried)
+            basis_nodes = get_basis_nodes(distribution)
             (stocks_potentials, needs_potentials) = calc_potentials(prices, basis_nodes)
             potential_counted = True
             for potential in stocks_potentials:
